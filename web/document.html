@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Document – Mini Search</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <p><a href="/">&larr; Back to search</a></p>
+  </header>
+
+  <main>
+    <article class="doc">
+      <h1 id="doc-title">Loading…</h1>
+      <p id="doc-category" class="doc-category"></p>
+      <div id="doc-text" class="doc-text"></div>
+    </article>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var titleEl = document.getElementById("doc-title");
+      var categoryEl = document.getElementById("doc-category");
+      var textEl = document.getElementById("doc-text");
+
+      function showError(message) {
+        titleEl.textContent = "Document unavailable";
+        categoryEl.textContent = "";
+        textEl.textContent = message;
+      }
+
+      var docId = new URLSearchParams(window.location.search).get("id");
+      if (!docId) {
+        showError("No document id was given.");
+        return;
+      }
+
+      fetch("/document/" + encodeURIComponent(docId))
+        .then(function (response) {
+          if (response.status === 404) {
+            throw new Error("Document " + docId + " was not found.");
+          }
+          if (!response.ok) {
+            throw new Error("The server returned " + response.status + ".");
+          }
+          return response.json();
+        })
+        .then(function (doc) {
+          document.title = doc.doc_id + " – Mini Search";
+          titleEl.textContent = doc.doc_id;
+          categoryEl.textContent = doc.category;
+          textEl.textContent = doc.text;
+          textEl.style.whiteSpace = "pre-wrap";
+        })
+        .catch(function (error) {
+          showError(error.message);
+        });
+    })();
+  </script>
+</body>
+</html>

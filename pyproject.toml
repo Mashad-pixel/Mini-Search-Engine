@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mini-search"
+version = "0.1.0"
+description = "Hybrid search engine: Tantivy BM25 + FAISS vectors fused with RRF, Whoosh autocomplete, FastAPI and a static web UI."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+include = ["search_engine*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "D"]
+ignore = [
+    "D105",  # magic-method docstrings (e.g. VectorIndex.__len__)
+    "D107",  # __init__ docstrings; the class docstring documents construction
+    "B905",  # zip() without strict=; the existing code zips equal-length sequences
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ANN"]
+"ingest_real_data.py" = ["E501"]  # long sentence-template strings
+"search_engine/vector_index.py" = ["E501"]  # long type-ignore / error-message lines
+"ingest_vectors.py" = ["D103", "ANN201"]
+"preflight.py" = ["D103"]
+"search_cli.py" = ["D103"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Query"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["slow: tests that build a real index or load an embedding model"]

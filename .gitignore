@@ -1,0 +1,17 @@
+﻿venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+data/*
+!data/.gitkeep
+.hf_cache/
+.vscode/
+.idea/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+.env
+.DS_Store
+Thumbs.db

@@ -1,0 +1,259 @@
+"""Generate starter evaluation queries from ``data/documents.jsonl``.
+
+Candidate queries are 2- and 3-word phrases that occur literally in the
+corpus. A phrase becomes a query when it is "relevant" to between 2 and 15
+documents, where a document is relevant if its text contains the phrase as a
+case-insensitive literal substring. Queries are written as JSONL::
+
+    {"query": "machine learning", "relevant": ["tech-machine-learning-0001", ...]}
+
+Bias warning:
+    Because relevance is defined by *literal phrase match*, these labels favour
+    lexical (BM25) search: a keyword engine finds exactly the documents the
+    labels were derived from, while semantic retrieval is penalised for
+    returning documents that are topically related but do not contain the
+    phrase. Treat lexical-vs-semantic numbers computed from these labels as an
+    optimistic baseline for lexical mode, and hand-label queries for a fair
+    comparison.
+
+Only the standard library is used. For a given input file and ``--seed`` the
+output is deterministic. The committed ``eval/queries.jsonl`` was produced
+from the default synthetic corpus (``python ingest_real_data.py``) with the
+default arguments.
+
+Usage:  python eval/make_queries.py [--input PATH] [--output PATH]
+                                    [--seed N] [--max-queries N]
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import random
+import re
+from collections import Counter
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Final
+
+BASE_DIR: Final[Path] = Path(__file__).resolve().parent.parent
+DEFAULT_INPUT: Final[Path] = BASE_DIR / "data" / "documents.jsonl"
+DEFAULT_OUTPUT: Final[Path] = BASE_DIR / "eval" / "queries.jsonl"
+DEFAULT_SEED: Final[int] = 42
+DEFAULT_MAX_QUERIES: Final[int] = 40
+
+MIN_RELEVANT: Final[int] = 2
+MAX_RELEVANT: Final[int] = 15
+PHRASE_LENGTHS: Final[tuple[int, ...]] = (2, 3)
+MIN_WORD_CHARS: Final[int] = 3
+
+_WORD: Final[re.Pattern[str]] = re.compile(r"[^\W_]+")
+_STOP_WORDS: Final[frozenset[str]] = frozenset(
+    {
+        "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
+        "have", "in", "into", "is", "it", "its", "of", "on", "or", "that", "the",
+        "their", "this", "to", "was", "were", "with",
+    }
+)  # fmt: skip
+
+
+def read_documents(path: Path) -> dict[str, str]:
+    """Read ``doc_id`` and ``text`` pairs from a JSONL file.
+
+    A repeated ``doc_id`` keeps its last text, matching the ingest scripts.
+
+    Args:
+        path: Source file with one ``{"doc_id": ..., "text": ...}`` per line.
+
+    Returns:
+        Mapping of ``doc_id`` to text, in first-seen order.
+
+    Raises:
+        ValueError: If a line is invalid JSON or lacks the string fields.
+    """
+    documents: dict[str, str] = {}
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{path}:{line_number}: invalid JSON ({exc})") from exc
+            if (
+                not isinstance(record, dict)
+                or not isinstance(record.get("doc_id"), str)
+                or not isinstance(record.get("text"), str)
+            ):
+                raise ValueError(f"{path}:{line_number}: expected string 'doc_id' and 'text'")
+            documents[record["doc_id"]] = record["text"]
+    return documents
+
+
+def _is_content_word(word: str) -> bool:
+    """Tell whether a word may start or end a candidate phrase.
+
+    Args:
+        word: A lowercase word.
+
+    Returns:
+        ``True`` for words that are not stop words, not purely numeric and at
+        least ``MIN_WORD_CHARS`` characters long.
+    """
+    return len(word) >= MIN_WORD_CHARS and not word.isdigit() and word not in _STOP_WORDS
+
+
+def phrases_in(lowered: str) -> set[str]:
+    """Extract candidate phrases that occur literally in a lowercase text.
+
+    A phrase is 2 or 3 consecutive words separated by exactly one space in the
+    source text, starting and ending with a content word.
+
+    Args:
+        lowered: Lowercased document text.
+
+    Returns:
+        The distinct candidate phrases found in the text.
+    """
+    matches = list(_WORD.finditer(lowered))
+    found: set[str] = set()
+    for length in PHRASE_LENGTHS:
+        for start in range(len(matches) - length + 1):
+            window = matches[start : start + length]
+            if not (_is_content_word(window[0].group()) and _is_content_word(window[-1].group())):
+                continue
+            if any(
+                lowered[left.end() : right.start()] != " "
+                for left, right in zip(window, window[1:], strict=False)
+            ):
+                continue
+            found.add(lowered[window[0].start() : window[-1].end()])
+    return found
+
+
+def build_queries(
+    documents: dict[str, str], seed: int, max_queries: int
+) -> list[tuple[str, list[str]]]:
+    """Sample queries together with their literal-match relevant documents.
+
+    Phrases whose document frequency is outside ``[MIN_RELEVANT, MAX_RELEVANT]``
+    are skipped, as are phrases whose relevant set duplicates an earlier
+    query's (they would be near-copies of each other).
+
+    Args:
+        documents: Mapping of ``doc_id`` to text.
+        seed: Seed for the phrase sampling.
+        max_queries: Maximum number of queries to return.
+
+    Returns:
+        ``(query, relevant_doc_ids)`` pairs in sampling order; relevant ids
+        follow the corpus order.
+    """
+    lowered_docs = [(doc_id, text.lower()) for doc_id, text in documents.items()]
+
+    doc_freq: Counter[str] = Counter()
+    for _doc_id, lowered in lowered_docs:
+        doc_freq.update(phrases_in(lowered))
+
+    candidates = sorted(
+        phrase for phrase, count in doc_freq.items() if MIN_RELEVANT <= count <= MAX_RELEVANT
+    )
+    random.Random(seed).shuffle(candidates)
+
+    queries: list[tuple[str, list[str]]] = []
+    seen_relevant: set[frozenset[str]] = set()
+    for phrase in candidates:
+        if len(queries) >= max_queries:
+            break
+        relevant = [doc_id for doc_id, lowered in lowered_docs if phrase in lowered]
+        if not MIN_RELEVANT <= len(relevant) <= MAX_RELEVANT:
+            continue
+        key = frozenset(relevant)
+        if key in seen_relevant:
+            continue
+        seen_relevant.add(key)
+        queries.append((phrase, relevant))
+    return queries
+
+
+def write_queries(path: Path, queries: Sequence[tuple[str, list[str]]]) -> None:
+    """Write queries as JSONL (UTF-8, ``\\n`` line endings on every platform).
+
+    Args:
+        path: Destination file; parent directories are created.
+        queries: ``(query, relevant_doc_ids)`` pairs.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        for query, relevant in queries:
+            record = {"query": query, "relevant": relevant}
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _positive_int(value: str) -> int:
+    """Parse a strictly positive integer for argparse.
+
+    Args:
+        value: The raw command-line string.
+
+    Returns:
+        The parsed integer.
+
+    Raises:
+        argparse.ArgumentTypeError: If ``value`` is not an integer >= 1.
+    """
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value!r} is not an integer") from None
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be >= 1")
+    return number
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments.
+
+    Args:
+        argv: Argument list; defaults to ``sys.argv[1:]``.
+
+    Returns:
+        The parsed namespace.
+    """
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Documents JSONL.")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Queries JSONL.")
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED, help="Sampling seed.")
+    parser.add_argument(
+        "--max-queries",
+        type=_positive_int,
+        default=DEFAULT_MAX_QUERIES,
+        help="Maximum number of queries to write.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    """Generate the queries file and print a short summary.
+
+    Args:
+        argv: Argument list; defaults to ``sys.argv[1:]``.
+    """
+    args = parse_args(argv)
+    if not args.input.is_file():
+        raise SystemExit(f"{args.input} not found. Run `python ingest_real_data.py` first.")
+
+    documents = read_documents(args.input)
+    queries = build_queries(documents, args.seed, args.max_queries)
+    if not queries:
+        raise SystemExit("No phrase matched between 2 and 15 documents; nothing to write.")
+
+    write_queries(args.output, queries)
+    print(f"Documents read:  {len(documents)}")
+    print(f"Queries written: {len(queries)} (requested up to {args.max_queries})")
+    print(f"Output:          {args.output}")
+
+
+if __name__ == "__main__":
+    main()

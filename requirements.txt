@@ -1,0 +1,9 @@
+﻿fastapi
+uvicorn[standard]
+tantivy
+sentence-transformers
+torch
+faiss-cpu
+numpy
+snowballstemmer
+whoosh-reloaded>=2.7.5

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Mini Search</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Mini Search</h1>
+  </header>
+
+  <main>
+    <div id="search-wrap" class="search-wrap">
+      <input
+        id="query"
+        type="search"
+        name="q"
+        placeholder="Search documents…"
+        autocomplete="off"
+        autofocus
+        role="combobox"
+        aria-label="Search query"
+        aria-autocomplete="list"
+        aria-controls="suggestions"
+        aria-expanded="false"
+      >
+      <button id="search-btn" type="button">Search</button>
+      <div id="suggestions" class="suggestions" role="listbox" aria-label="Suggestions"></div>
+    </div>
+
+    <p class="hint">
+      Tip: put a phrase in quotes, e.g. <code>python "machine learning"</code>, to require an exact match.
+    </p>
+
+    <fieldset id="mode-toggle" class="mode-toggle">
+      <legend>Search mode</legend>
+      <label><input type="radio" name="mode" value="lexical"> Keywords</label>
+      <label><input type="radio" name="mode" value="semantic"> Semantic</label>
+      <label><input type="radio" name="mode" value="hybrid" checked> Hybrid</label>
+    </fieldset>
+
+    <fieldset id="facets" class="facets">
+      <legend>Categories</legend>
+      <div id="facet-list" class="facet-list"></div>
+      <button id="facet-clear" type="button">Clear filters</button>
+    </fieldset>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section id="results" class="results" aria-label="Search results"></section>
+  </main>
+
+  <noscript>This page needs JavaScript to run searches.</noscript>
+</body>
+</html>
