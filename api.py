@@ -196,22 +196,5 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         reload_dirs=["."],
-        reload_excludes=[
-            "venv/*",
-            "venv/**/*",
-            ".venv/*",
-            ".venv/**/*",
-            "data/*",
-            "data/**/*",
-            "__pycache__/*",
-            "**/__pycache__/*",
-            "*.pyc",
-            ".git/*",
-            ".git/**/*",
-            ".vscode/*",
-            ".idea/*",
-            ".hf_cache/*",
-            ".hf_cache/**/*",
-            "*.log",
-        ],
+        
     )
