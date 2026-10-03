@@ -1,3 +1,5 @@
+this is a mini search engine it has limited data stored init.
+
 # Mini Search
 
 Mini Search is a hybrid search engine built from small, readable parts: Tantivy BM25
