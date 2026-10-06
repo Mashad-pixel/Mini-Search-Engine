@@ -1,0 +1,155 @@
+
+
+## Keyword mode (short, exact terms — BM25)
+
+### Science
+photosynthesis
+plate tectonics
+black hole
+quantum entanglement
+"natural selection"
+dark matter
+cell division
+nuclear fusion
+genetic mutation
+ocean acidification
+superconductivity
+"the water cycle"
+protein folding
+gravitational waves
+antibiotic resistance
+"the greenhouse effect"
+
+### Technology
+"machine learning"
+"neural network"
+"public key cryptography"
+"relational database"
+"cloud computing"
+"operating system"
+"search engine"
+"computer vision"
+"natural language processing"
+"distributed system"
+"quantum computing"
+"version control"
+
+### Combined
+python "machine learning"
+"neural network" photosynthesis
+einstein "black hole"
+
+---
+
+## Semantic mode (natural-language questions)
+
+### Science
+How do plants convert sunlight into food?
+What causes ocean acidification?
+Why does ice float on water?
+How do cells divide?
+What is dark matter made of?
+Why do earthquakes happen?
+How does nuclear fusion work?
+What causes genetic mutations?
+How are gravitational waves detected?
+Why is the ocean salty?
+What causes the greenhouse effect?
+How do antibiotics stop working?
+
+### Technology
+How do computers understand language?
+How does machine learning work?
+How do neural networks learn?
+Why do search engines rank results?
+How does public key cryptography work?
+What is a distributed system?
+How does cloud computing work?
+What is quantum computing used for?
+How does version control help teams?
+
+### Meaning-based (works only in Semantic mode)
+the process by which plants make food
+computers that think like brains
+tiny particles that behave strangely
+how species change over time
+the layer of air that traps heat
+how data is stored in tables
+
+---
+
+## Hybrid mode (keywords + phrasing)
+
+machine learning in healthcare
+history of search engines
+how volcanoes affect climate
+applications of quantum computing
+neural networks for computer vision
+
+---
+
+## History and Geography (by pattern word)
+
+### History
+battle
+treaty
+rebellion
+dynasty
+siege
+expedition
+"the battle of"
+"the treaty of"
+
+### Geography
+river
+mountain
+lake
+archipelago
+desert
+city
+
+---
+
+## Category facets — click a chip after any query
+
+Science
+Technology
+History
+Geography
+Arts
+
+Click two or more chips to widen the filter (OR semantics).
+Click "Clear filters" to reset.
+
+
+
+## Demo sequence (shows all four features in ~30 seconds)
+
+Step 1 — Keyword mode:
+  the process by which plants make food
+  → likely 0 or few results
+
+Step 2 — Semantic mode (same query):
+  the process by which plants make food
+  → returns science-photosynthesis-0001 and similar
+
+Step 3 — Hybrid mode:
+  photosynthesis
+  → exact document at top, highlighted terms
+
+Step 4 — Facet:
+  click the "Science" chip
+  → list narrows
+
+
+
+## What won't work (and why)
+
+What is 2+2?              → not in the corpus
+Who won the World Cup?    → sports aren't in the synthetic data
+the and of is             → all stopwords, nothing to match
+asdfghjkl                 → no such term
+Show me everything        → use facets to browse instead
+
+Rule of thumb: if the topic is one of the subjects listed above,
+or one of the history/geography pattern words, the query will work.
